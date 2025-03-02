@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS tags (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS item_tags (
+    id BIGSERIAL PRIMARY KEY,
+    item_id INT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    tag_id INT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    CONSTRAINT item_tags_unique UNIQUE (item_id, tag_id)
+);
