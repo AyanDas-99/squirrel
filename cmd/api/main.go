@@ -21,16 +21,17 @@ type config struct {
 }
 
 type application struct {
-	config    config
-	logger    *jsonlog.Logger
-	items     *data.ItemModel
-	issues    *data.IssueModel
-	removals  *data.RemovalModel
-	additions *data.AdditionModel
-	users     *data.UserModel
-	tags      *data.TagModel
-	tokens    *data.TokenModel
-	org       *data.OrganizationsModel
+	config      config
+	logger      *jsonlog.Logger
+	items       *data.ItemModel
+	issues      *data.IssueModel
+	removals    *data.RemovalModel
+	additions   *data.AdditionModel
+	users       *data.UserModel
+	tags        *data.TagModel
+	tokens      *data.TokenModel
+	permissions *data.PermissionModel
+	org         *data.OrganizationsModel
 }
 
 func main() {
@@ -50,16 +51,17 @@ func main() {
 	defer db.Close()
 
 	app := &application{
-		items:     &data.ItemModel{DB: db},
-		issues:    &data.IssueModel{DB: db},
-		removals:  &data.RemovalModel{DB: db},
-		additions: &data.AdditionModel{DB: db},
-		tags:      &data.TagModel{DB: db},
-		org:       &data.OrganizationsModel{DB: db},
-		users:     &data.UserModel{DB: db},
-		tokens:    &data.TokenModel{DB: db},
-		logger:    logger,
-		config:    config,
+		items:       &data.ItemModel{DB: db},
+		issues:      &data.IssueModel{DB: db},
+		removals:    &data.RemovalModel{DB: db},
+		additions:   &data.AdditionModel{DB: db},
+		tags:        &data.TagModel{DB: db},
+		org:         &data.OrganizationsModel{DB: db},
+		users:       &data.UserModel{DB: db},
+		tokens:      &data.TokenModel{DB: db},
+		permissions: &data.PermissionModel{DB: db},
+		logger:      logger,
+		config:      config,
 	}
 
 	err = app.serve()

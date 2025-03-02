@@ -60,3 +60,70 @@ func (app *application) registerUser(w http.ResponseWriter, r *http.Request) {
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+func (app *application) getAllUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := app.users.GetAllNonAdmin()
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoRecord):
+			app.notFoundErrorResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"users": users}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) getUserPermissionById(w http.ResponseWriter, r *http.Request) {
+
+	id, err := app.readIdFromParams(r)
+	if err != nil || id < 1 {
+		app.notFoundErrorResponse(w, r)
+		return
+	}
+
+	permissions, err := app.permissions.GetAllForUser(id)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"permissions": permissions}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) updatePermission(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		UserID       int64    `json:"user_id"`
+		PermissionID []string `json:"permission_ids"`
+		Grant        bool     `json:"grant"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if input.Grant {
+		err = app.permissions.AddForUser(input.UserID, input.PermissionID...)
+	} else {
+		err = app.permissions.RemoveForUser(input.UserID, input.PermissionID...)
+	}
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"message": "permission added"}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}

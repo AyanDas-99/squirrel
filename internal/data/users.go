@@ -154,3 +154,46 @@ func (m UserModel) GetForToken(token string) (*User, error) {
 	return &user, nil
 
 }
+
+func (m UserModel) GetAllNonAdmin() ([]*User, error) {
+	query := `SELECT id, username, hash, is_admin, created_at, updated_at, version FROM users WHERE is_admin = false`
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.QueryContext(ctx, query)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrNoRecord
+		default:
+			return nil, err
+		}
+	}
+	defer rows.Close()
+
+	users := []*User{}
+
+	for rows.Next() {
+		var user User
+
+		err := rows.Scan(
+			&user.ID,
+			&user.UserName,
+			&user.Hash,
+			&user.IsAdmin,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+			&user.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		users = append(users, &user)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return users, nil
+}
