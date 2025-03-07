@@ -40,6 +40,7 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/users", app.registerUser)
 	router.HandlerFunc(http.MethodGet, "/users", app.requireAdmin(app.getAllUsers))
 	router.HandlerFunc(http.MethodPost, "/tokens/authentication", app.createAuthenticationToken)
+	router.HandlerFunc(http.MethodPost, "/tokens/validate", app.validateToken)
 	router.HandlerFunc(http.MethodPost, "/users/permissions", app.requireAdmin(app.updatePermission))
 	router.HandlerFunc(http.MethodGet, "/users/permissions/:id", app.requireAdmin(app.getUserPermissionById))
 

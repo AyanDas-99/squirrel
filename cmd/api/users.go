@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"test.com/internal/data"
 	"test.com/internal/validator"
@@ -19,6 +20,8 @@ func (app *application) registerUser(w http.ResponseWriter, r *http.Request) {
 		app.badRequestResponse(w, r, err)
 		return
 	}
+
+	input.UserName = strings.TrimSpace(input.UserName)
 
 	v := validator.New()
 	v.Check(input.UserName != "", "username", "must be provided")
