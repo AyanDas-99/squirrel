@@ -3,9 +3,14 @@ package data
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
+)
 
-	"github.com/lib/pq"
+var (
+	ErrPermissionDoesNotExist = errors.New("permission does not exist")
+	ErrDuplicatePermission    = errors.New("user already has permission")
+	ErrUserDoesNotExist       = errors.New("user does not exist")
 )
 
 type Permissions []string
@@ -62,28 +67,41 @@ func (m PermissionModel) GetAllForUser(userID int64) (Permissions, error) {
 	return permissions, nil
 }
 
-func (m PermissionModel) AddForUser(userID int64, codes ...string) error {
+func (m PermissionModel) AddForUser(userID int64, code int) error {
 	query := `
-		INSERT INTO users_permissions
-		SELECT $1, permissions.id FROM permissions WHERE permissions.code = ANY($2)
+		INSERT INTO users_permissions (user_id, permission_id)
+		VALUES ($1, $2)
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, query, userID, pq.Array(codes))
+	_, err := m.DB.ExecContext(ctx, query, userID, code)
+
+	if err != nil {
+		switch {
+		case err.Error() == "pq: insert or update on table \"users_permissions\" violates foreign key constraint \"users_permissions_permission_id_fkey\"":
+			return ErrPermissionDoesNotExist
+		case err.Error() == "pq: duplicate key value violates unique constraint \"users_permissions_pkey\"":
+			return ErrDuplicatePermission
+		case err.Error() == "pq: insert or update on table \"users_permissions\" violates foreign key constraint \"users_permissions_user_id_fkey\"":
+			return ErrUserDoesNotExist
+		}
+
+		return err
+	}
 	return err
 }
 
-func (m PermissionModel) RemoveForUser(userID int64, codes ...string) error {
+func (m PermissionModel) RemoveForUser(userID int64, code int) error {
 	query := `
 		DELETE FROM users_permissions
-		SELECT $1, permissions.id FROM permissions WHERE permissions.code = ANY($2)
+		WHERE user_id = $1 AND permission_id = $2	
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, query, userID, pq.Array(codes))
+	_, err := m.DB.ExecContext(ctx, query, userID, code)
 	return err
 }

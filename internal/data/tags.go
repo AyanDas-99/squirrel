@@ -48,6 +48,25 @@ func (m TagModel) InsertTag(tag *Tag) error {
 	return err
 }
 
+func (m TagModel) DeleteTag(tagId int) error {
+	query := `
+		DELETE FROM tags
+		WHERE id = $1
+		`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	res, err := m.DB.ExecContext(ctx, query, tagId)
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	} else if affected == 0 {
+		return ErrNoRecord
+	}
+	return err
+}
+
 func (m TagModel) GetTags() ([]*Tag, error) {
 	query := `
 	SELECT id, name

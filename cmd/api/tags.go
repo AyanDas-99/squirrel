@@ -47,6 +47,43 @@ func (app *application) insertTag(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (app *application) removeTag(w http.ResponseWriter, r *http.Request) {
+
+	var input struct {
+		ID int `json:"tag_id"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	v.Check(input.ID != 0, "tag_id", "must be greater than 0")
+
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	err = app.tags.DeleteTag(input.ID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoRecord):
+			app.notFoundErrorResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, nil, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
 func (app *application) getAllTags(w http.ResponseWriter, r *http.Request) {
 	tags, err := app.tags.GetTags()
 	if err != nil {

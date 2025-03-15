@@ -61,7 +61,7 @@ func (app *application) createAuthenticationToken(w http.ResponseWriter, r *http
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"authentication_token": token}, nil)
+	err = app.writeJSON(w, http.StatusCreated, envelope{"authentication_token": token, "user": user}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
@@ -69,39 +69,39 @@ func (app *application) createAuthenticationToken(w http.ResponseWriter, r *http
 
 func (app *application) validateToken(w http.ResponseWriter, r *http.Request) {
 
-		authorizationHeader := r.Header.Get("Authorization")
-		if authorizationHeader == "" {
+	authorizationHeader := r.Header.Get("Authorization")
+	if authorizationHeader == "" {
+		app.invalidAuthenticationTokenResponse(w, r)
+		return
+	}
+
+	headerParts := strings.Split(authorizationHeader, " ")
+	if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+		app.invalidAuthenticationTokenResponse(w, r)
+		return
+	}
+
+	token := headerParts[1]
+
+	v := validator.New()
+	if data.ValidateTokenPlaintext(v, token); !v.Valid() {
+		app.invalidAuthenticationTokenResponse(w, r)
+		return
+	}
+
+	user, err := app.users.GetForToken(token)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoRecord):
 			app.invalidAuthenticationTokenResponse(w, r)
-			return
+		default:
+			app.serverErrorResponse(w, r, err)
 		}
+		return
+	}
 
-		headerParts := strings.Split(authorizationHeader, " ")
-		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-			app.invalidAuthenticationTokenResponse(w, r)
-			return
-		}
+	err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
+	if err != nil {
 
-		token := headerParts[1]
-
-		v := validator.New()
-		if data.ValidateTokenPlaintext(v, token); !v.Valid() {
-			app.invalidAuthenticationTokenResponse(w, r)
-			return
-		}
-
-		user, err := app.users.GetForToken(token)
-		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrNoRecord):
-				app.invalidAuthenticationTokenResponse(w, r)
-			default:
-				app.serverErrorResponse(w, r, err)
-			}
-			return
-		}
-
-		err = app.writeJSON(w, http.StatusOK, envelope{"user":user}, nil)
-		if err != nil {
-
-		}
+	}
 }

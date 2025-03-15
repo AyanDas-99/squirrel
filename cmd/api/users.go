@@ -104,9 +104,9 @@ func (app *application) getUserPermissionById(w http.ResponseWriter, r *http.Req
 
 func (app *application) updatePermission(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		UserID       int64    `json:"user_id"`
-		PermissionID []string `json:"permission_ids"`
-		Grant        bool     `json:"grant"`
+		UserID       int64 `json:"user_id"`
+		PermissionID int   `json:"permission_id"`
+		Grant        bool  `json:"grant"`
 	}
 
 	err := app.readJSON(w, r, &input)
@@ -115,12 +115,32 @@ func (app *application) updatePermission(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	v := validator.New()
+	v.Check(input.UserID > 0, "user_id", "must be greater than zero")
+	v.Check(input.PermissionID > 0, "permission_id", "must be greater than zero")
+
 	if input.Grant {
-		err = app.permissions.AddForUser(input.UserID, input.PermissionID...)
+		err = app.permissions.AddForUser(input.UserID, input.PermissionID)
 	} else {
-		err = app.permissions.RemoveForUser(input.UserID, input.PermissionID...)
+		err = app.permissions.RemoveForUser(input.UserID, input.PermissionID)
 	}
 	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrPermissionDoesNotExist):
+			v.AddError("permission_id", "permission does not exist")
+			app.failedValidationResponse(w, r, v.Errors)
+			return
+
+		case errors.Is(err, data.ErrDuplicatePermission):
+			v.AddError("permission_id", "user with permission already exists")
+			app.failedValidationResponse(w, r, v.Errors)
+			return
+
+		case errors.Is(err, data.ErrUserDoesNotExist):
+			v.AddError("user_id", "permission does not exist")
+			app.failedValidationResponse(w, r, v.Errors)
+			return
+		}
 		app.serverErrorResponse(w, r, err)
 		return
 	}

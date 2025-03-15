@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -80,21 +81,61 @@ func (m ItemModel) GetItem(id int64) (*Item, error) {
 	return &item, nil
 }
 
-func (m ItemModel) GetAllItems(name string, remarks string, filters Filters) ([]*Item, Metadata, error) {
+func (m ItemModel) GetAllItems(name string, remarks string, tagId int, filters Filters) ([]*Item, Metadata, error) {
+	// query := `
+	// 	SELECT count(*) OVER(), id, name,  quantity, remaining, remarks, created_at, version
+	// 	FROM items
+	// 	INNER JOIN item_tags ON item_tags.item_id = items.id
+	// 	AND item_tags.id = $1
+	// 	WHERE (LOWER(name) = LOWER($2) OR $2 = '')
+	// 	AND (remarks ILIKE '%' || $3 || '%' OR $3 = '')
+	// 	ORDER BY items.` + filters.sortColumn() + ` ` + filters.sortDirection() + `
+	// 	LIMIT $4 OFFSET $5`
+
+	// ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// defer cancel()
+
+	// args := []interface{}{tagId, name, remarks, filters.limit(), filters.offset()}
+
+	// rows, err := m.DB.QueryContext(ctx, query, args...)
+
+	// from AI
 	query := `
-		SELECT count(*) OVER(), id, name,  quantity, remaining, remarks, created_at, version
-		FROM items
-		WHERE (LOWER(name) = LOWER($1) OR $1 = '')
-		AND (remarks ILIKE '%' || $2 || '%' OR $2 = '')
-		ORDER BY ` + filters.sortColumn() + ` ` + filters.sortDirection() + `
-		LIMIT $3 OFFSET $4`
+	SELECT count(*) OVER(), items.id, items.name, items.quantity, items.remaining, items.remarks, items.created_at, items.version
+	FROM items`
+
+	args := []interface{}{}
+	argIndex := 1 // PostgreSQL placeholders start with $1
+
+	if tagId != 0 {
+		query += `
+	INNER JOIN item_tags ON item_tags.item_id = items.id
+	AND item_tags.tag_id = $` + fmt.Sprint(argIndex)
+		args = append(args, tagId)
+		argIndex++
+	}
+
+	query += `
+	WHERE (name ILIKE '%' || $` + fmt.Sprint(argIndex) + ` || '%' OR $` + fmt.Sprint(argIndex) + ` = '')`
+	args = append(args, name)
+	argIndex++
+
+	query += `
+	AND (remarks ILIKE '%' || $` + fmt.Sprint(argIndex) + ` || '%' OR $` + fmt.Sprint(argIndex) + ` = '')`
+	args = append(args, remarks)
+	argIndex++
+
+	query += `
+	ORDER BY ` + filters.sortColumn() + ` ` + filters.sortDirection() + `
+	LIMIT $` + fmt.Sprint(argIndex) + ` OFFSET $` + fmt.Sprint(argIndex+1)
+
+	args = append(args, filters.limit(), filters.offset())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []interface{}{name, remarks, filters.limit(), filters.offset()}
-
 	rows, err := m.DB.QueryContext(ctx, query, args...)
+
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):

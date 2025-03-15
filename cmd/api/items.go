@@ -118,6 +118,7 @@ func (app *application) getItems(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Name    string
 		Remarks string
+		TagID   int
 		data.Filters
 	}
 
@@ -127,6 +128,7 @@ func (app *application) getItems(w http.ResponseWriter, r *http.Request) {
 
 	input.Name = app.readString(qs, "name", "")
 	input.Remarks = app.readString(qs, "remarks", "")
+	input.TagID = app.readInt(qs, "tag_id", 0, v)
 	input.Filters.Page = app.readInt(qs, "page", 1, v)
 	input.Filters.PageSize = app.readInt(qs, "page_size", 10, v)
 	input.Filters.Sort = app.readString(qs, "sort", "id")
@@ -137,7 +139,7 @@ func (app *application) getItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, metadata, err := app.items.GetAllItems(input.Name, input.Remarks, input.Filters)
+	items, metadata, err := app.items.GetAllItems(input.Name, input.Remarks, input.TagID, input.Filters)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
@@ -215,5 +217,9 @@ func (app *application) deleteItem(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
+	}
+	err = app.writeJSON(w, http.StatusOK, nil, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
 	}
 }
