@@ -131,6 +131,23 @@ func (m TagModel) InsertItemTag(itemTag *ItemTag) error {
 	return err
 }
 
+func (m TagModel) RemoveItemTag(itemId int, tagId int) error {
+	query := `
+	DELETE FROM item_tags WHERE item_id = $1 AND tag_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	res, err := m.DB.ExecContext(ctx, query, itemId, tagId)
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	} else if affected == 0 {
+		return ErrNoRecord
+	}
+	return err
+}
+
 func (m TagModel) GetTagsForItem(itemId int64) ([]string, error) {
 	query := `
 		SELECT name FROM tags

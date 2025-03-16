@@ -97,6 +97,45 @@ func (app *application) getAllTags(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (app *application) removeItemTag(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		ItemID int `json:"item_id"`
+		TagID  int `json:"tag_id"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	v.Check(input.ItemID > 0, "item_id", "must be a positive integer")
+	v.Check(input.TagID > 0, "tag_id", "must be a positive integer")
+
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	err = app.tags.RemoveItemTag(input.ItemID, input.TagID)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoRecord):
+			app.notFoundErrorResponse(w, r)
+			return
+		}
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, nil, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
 func (app *application) addItemTag(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		ItemID int32 `json:"item_id"`
